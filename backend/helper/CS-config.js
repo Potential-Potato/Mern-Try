@@ -1,6 +1,6 @@
 const { MongoClient } = require('mongodb');
 
-const atlasUrl = process.env.AtlastURL;
+const atlasUrl = process.env.AtlasURL;
 const mongodUrl = process.env.MongodURL;
 
 const startChangeStream = async () => {
