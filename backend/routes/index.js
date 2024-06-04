@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const User = require('../models/user');
+const OfflineOperation = require('../models/offlineOperation');
 const mongoose = require('mongoose');
 const { MongoClient } = require('mongodb');
 
@@ -11,7 +12,16 @@ const performCrudOperation = async (operationType, collectionName, document) => 
   const localDb = localClient.db('try');
   const offlineCollection = localDb.collection('offline_operations');
 
-  await offlineCollection.insertOne({ operationType, collectionName, document });
+  const timestamp = new Date();
+  const operationDocument = {
+    operationType,
+    collectionName,
+    document,
+    timestamp,
+    synced: false
+  };
+
+  await offlineCollection.insertOne(operationDocument);
 };
 
 // Display all users
@@ -21,6 +31,7 @@ router.get('/', async (req, res) => {
     res.status(200).json(users);
   } catch (error) {
     console.log(error);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
@@ -29,10 +40,10 @@ router.post('/register', async (req, res) => {
   try {
     const { name, email } = req.body;
     if (!name || !email) {
-      return res.json({ error: "Email or Name should not be empty." });
+      return res.status(400).json({ error: "Email or Name should not be empty." });
     }
 
-    const user = new User({ name, email });
+    const user = new User({ name, email, timestamp: new Date() });
 
     if (global.isOnline && mongoose.connection.readyState === 1) { // Connected
       await user.save();
@@ -44,6 +55,7 @@ router.post('/register', async (req, res) => {
     return res.status(200).json(user);
   } catch (error) {
     console.log(error);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 

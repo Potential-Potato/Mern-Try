@@ -6,6 +6,7 @@ const user = new mongoose.Schema({
         type: String,
         unique: true
     },
+    timestamp: { type: Date, default: Date.now },
 })
 
 const userModel = mongoose.model('User', user)
