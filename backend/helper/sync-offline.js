@@ -78,8 +78,8 @@ const syncOfflineOperations = async () => {
             case 'insert':
             case 'replace':
               await usersCollection.updateOne(
-                { _id: document._id },
-                { $set: document },
+                { email: document.email },
+                { $set: { ...document, _id: existingDocument ? existingDocument._id : document._id } },
                 { upsert: true }
               );
               console.log('Document inserted/replaced in local MongoDB');
