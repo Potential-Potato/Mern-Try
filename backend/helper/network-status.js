@@ -8,9 +8,13 @@ const checkNetworkStatus = async () => {
         console.log('Network is offline, operations will be stored locally.');
         global.isOnline = false;
       } else {
-        console.log('Network is online, syncing offline operations...');
-        global.isOnline = true;
-        await syncOfflineOperations();
+        if (!global.isOnline) { // Only sync if previously offline
+          console.log('Network is online, syncing offline operations...');
+          global.isOnline = true;
+          await syncOfflineOperations();
+        } else {
+          console.log('Network is online, already synced.');
+        }
       }
     });
   } catch (error) {
