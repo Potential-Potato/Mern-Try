@@ -1,17 +1,20 @@
-const { MongoClient } = require('mongodb');
-
-const atlasUrl = process.env.AtlasURL;
-const mongodUrl = process.env.MongodURL;
+// helper/sync-offline.js
+const mongoose = require('mongoose');
+const OfflineOperation = require('../models/offlineOperation');
+const { atlasUrl, mongodUrl } = require('../config');
 
 const syncOfflineOperations = async () => {
+  let localConnection;
+  let atlasConnection;
+
   try {
-    const localClient = new MongoClient(mongodUrl);
-    await localClient.connect();
+    // Connect to local MongoDB
+    localConnection = mongoose.createConnection(mongodUrl);
+    await localConnection.asPromise();
     console.log('Connected to local MongoDB for syncing');
 
-    const localDb = localClient.db('try');
-    const offlineCollection = localDb.collection('offline_operations'); // Use native MongoDB driver
-    const offlineOperations = await offlineCollection.find({}).toArray(); // Fetch all offline operations
+    const OfflineOperationModel = localConnection.model('OfflineOperation', OfflineOperation.schema);
+    const offlineOperations = await OfflineOperationModel.find({}); // Fetch all offline operations
 
     if (offlineOperations.length === 0) {
       console.log('No offline operations to sync.');
@@ -20,15 +23,16 @@ const syncOfflineOperations = async () => {
 
     console.log(`Found ${offlineOperations.length} offline operations to sync.`);
 
-    const client = new MongoClient(atlasUrl);
-    await client.connect();
+    // Connect to Atlas MongoDB
+    atlasConnection = mongoose.createConnection(atlasUrl);
+    await atlasConnection.asPromise();
     console.log('Connected to Atlas for syncing');
 
-    const db = client.db('test');
+    const atlasDb = atlasConnection.useDb('test');
 
     for (const operation of offlineOperations) {
       const { operationType, collectionName, document } = operation;
-      const collection = db.collection(collectionName);
+      const collection = atlasDb.collection(collectionName);
 
       try {
         console.log(`Syncing operation: ${operationType} for document: ${document._id}`);
@@ -55,7 +59,7 @@ const syncOfflineOperations = async () => {
             break;
         }
         // Remove synced operation from local collection
-        await offlineCollection.deleteOne({ _id: operation._id });
+        await OfflineOperationModel.deleteOne({ _id: operation._id });
         console.log(`Operation ${operationType} for document ${document._id} synced and removed from offline collection.`);
       } catch (syncError) {
         console.error('Error syncing operation:', syncError);
@@ -65,6 +69,13 @@ const syncOfflineOperations = async () => {
     console.log('Offline operations synced successfully');
   } catch (error) {
     console.error('Error syncing offline operations:', error);
+  } finally {
+    if (localConnection) {
+      await localConnection.close();
+    }
+    if (atlasConnection) {
+      await atlasConnection.close();
+    }
   }
 };
 

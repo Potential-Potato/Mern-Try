@@ -1,3 +1,4 @@
+// helper/network-status.js
 const dns = require('dns');
 const syncOfflineOperations = require('./sync-offline');
 
@@ -14,6 +15,7 @@ const checkNetworkStatus = async () => {
           await syncOfflineOperations();
         } else {
           console.log('Network is online, already synced.');
+          return;
         }
       }
     });
