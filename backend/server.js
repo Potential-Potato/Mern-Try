@@ -11,28 +11,35 @@ const checkNetworkStatus = require('./helper/network-status');
 
 const app = express();
 
-const connectToDatabase = async () => {
+const connectToDatabase = async (url) => {
   try {
-    await mongoose.connect(atlasUrl);
-    console.log('Connected to Atlas');
+    await mongoose.connect(url);
+    console.log(`Connected to database: ${url}`);
+    return true;
+  } catch (error) {
+    console.error(`Error connecting to database: ${url}`, error);
+    return false;
+  }
+};
+
+const initialConnect = async () => {
+  let connected = await connectToDatabase(atlasUrl);
+  if (connected) {
     global.isOnline = true;
     startChangeStream();
     await syncOfflineOperations(); // Sync offline operations when server starts
-  } catch (error) {
-    console.error('Error connecting to Atlas:', error);
+  } else {
     console.log('Attempting to connect to local MongoDB...');
-    try {
-      await mongoose.connect(mongodUrl);
-      console.log('Connected to local MongoDB');
+    connected = await connectToDatabase(mongodUrl);
+    if (connected) {
       global.isOnline = false;
-    } catch (localError) {
-      console.error('Error connecting to local MongoDB:', localError);
-      global.isOnline = false;
+    } else {
+      console.error('Failed to connect to both Atlas and local MongoDB');
     }
   }
 };
 
-connectToDatabase();
+initialConnect();
 
 app.use(express.json());
 app.use('/', indexRoute);
