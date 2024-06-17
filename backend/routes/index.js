@@ -4,6 +4,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const User = require('../models/user');
 const OfflineOperation = require('../models/offlineOperation');
+const { isConnectedToAtlas } = require('../helper/db-manager');
 
 const performCrudOperation = async (operationType, collectionName, document) => {
   try {
@@ -51,7 +52,7 @@ router.post('/register', async (req, res) => {
 
     const user = new User({ name, email, timestamp: new Date() });
 
-    if (global.isOnline && mongoose.connection.readyState === 1) { // Connected
+    if (isConnectedToAtlas() && mongoose.connection.readyState === 1) { // Connected
       await user.save();
       return res.status(200).json(user);
     } else { // Disconnected

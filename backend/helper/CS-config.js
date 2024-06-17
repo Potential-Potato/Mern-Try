@@ -1,32 +1,26 @@
 // helper/CS-config.js
-const mongoose = require('mongoose');
 const { MongoClient, ObjectId } = require('mongodb');
 const { atlasUrl, mongodUrl } = require('../config');
 
 const startChangeStream = async () => {
   try {
-    // Connect to Atlas using Mongoose
-    await mongoose.connect(atlasUrl);
-    console.log('Connected to Atlas using Mongoose');
     const client = new MongoClient(atlasUrl);
     await client.connect();
     const db = client.db('test');
 
-    // Connect to local MongoDB using Mongoose
-    const localConnection = await mongoose.createConnection(mongodUrl);
-    console.log('Connected to local MongoDB using Mongoose');
-
-    const localDb = localConnection.useDb('try');
+    const localClient = new MongoClient(mongodUrl);
+    await localClient.connect();
+    const localDb = localClient.db('try');
 
     console.log('Watching for changes on all collections in the database');
 
-    const changeStream = db.watch(); // This sets up a database-level change stream
+    const changeStream = db.watch();
 
     changeStream.on('change', async (change) => {
       try {
         console.log('Change detected:', change);
 
-        const collectionName = change.ns.coll; // Get the collection name from the change event
+        const collectionName = change.ns.coll;
         const localCollection = localDb.collection(collectionName);
 
         switch (change.operationType) {
@@ -39,10 +33,7 @@ const startChangeStream = async () => {
             console.log(`Document inserted/updated locally in ${collectionName}`);
             break;
           case 'update':
-            const updatedFields = { ...change.updateDescription.updatedFields };
-            if (!updatedFields.timestamp) {
-              updatedFields.timestamp = new Date();
-            }
+            const updatedFields = { ...change.updateDescription.updatedFields, timestamp: new Date() };
             await localCollection.updateOne(
               { _id: new ObjectId(change.documentKey._id) },
               { $set: updatedFields }
